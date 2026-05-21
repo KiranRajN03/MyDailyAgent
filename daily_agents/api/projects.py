@@ -251,7 +251,7 @@ def update_project(
     _check_project_owner(project, current_user)
 
     # Apply partial updates
-    update_data = request.dict(exclude_unset=True)
+    update_data = request.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         if value is not None and hasattr(project, field):
             setattr(project, field, value)

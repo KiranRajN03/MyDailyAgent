@@ -452,7 +452,7 @@ def update_recurring_meeting(
     db.flush()
 
     # Update config fields
-    update_data = request.dict(exclude_unset=True)
+    update_data = request.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         if value is not None and hasattr(rm, field):
             setattr(rm, field, value)

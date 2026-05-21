@@ -126,8 +126,12 @@ async def add_security_headers(request: Request, call_next):
 # ── Register Routers ─────────────────────────────────────────────────
 
 from daily_agents.api.auth import router as auth_router  # noqa: E402
+from daily_agents.api.projects import router as projects_router  # noqa: E402
+from daily_agents.api.meetings import router as meetings_router  # noqa: E402
 
 app.include_router(auth_router)
+app.include_router(projects_router)
+app.include_router(meetings_router)
 
 
 # ── Apply Rate Limits to Auth Endpoints ──────────────────────────────
