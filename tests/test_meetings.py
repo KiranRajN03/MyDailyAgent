@@ -334,3 +334,48 @@ class TestRecurringMeetings:
             "days_of_week": "monday",
         }, headers=auth(token))
         assert resp.status_code == 404
+
+
+class TestMeetingAttendance:
+
+    def _setup_meeting(self):
+        token, user_id = register_user("adm", "adm@test.com")
+        project = create_project(token, "Proj", "PRJ")
+        # Allocate user as team member to project
+        client.post(f"/api/projects/{project['id']}/team", json={
+            "user_id": user_id, "role": "developer",
+        }, headers=auth(token))
+        
+        m = client.post("/api/meetings", json={
+            "project_id": project["id"],
+            "meeting_type": "standup",
+            "scheduled_start": future_time(),
+        }, headers=auth(token)).json()
+        return token, user_id, m["id"]
+
+    def test_get_default_attendance(self):
+        token, user_id, meeting_id = self._setup_meeting()
+        resp = client.get(f"/api/meetings/{meeting_id}/attendance", headers=auth(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["user_id"] == user_id
+        assert data[0]["attended"] is False
+
+    def test_save_and_retrieve_attendance(self):
+        token, user_id, meeting_id = self._setup_meeting()
+        # Save attendance
+        save_resp = client.post(
+            f"/api/meetings/{meeting_id}/attendance",
+            json=[{"user_id": user_id, "attended": True, "late_by_minutes": 5}],
+            headers=auth(token)
+        )
+        assert save_resp.status_code == 200
+        
+        # Get updated attendance
+        resp = client.get(f"/api/meetings/{meeting_id}/attendance", headers=auth(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["attended"] is True
+        assert data[0]["late_by_minutes"] == 5

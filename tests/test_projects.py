@@ -281,3 +281,28 @@ class TestTeamMembers:
             "user_id": member_id, "role": "developer",
         }, headers=auth(member_token))
         assert resp.status_code == 403
+
+    def test_list_team_members(self):
+        admin_token, _, _, member_id, project_id = self._setup()
+        client.post(f"/api/projects/{project_id}/team", json={
+            "user_id": member_id, "role": "developer",
+        }, headers=auth(admin_token))
+        resp = client.get(f"/api/projects/{project_id}/team", headers=auth(admin_token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["user_id"] == member_id
+        assert data[0]["role"] == "developer"
+
+    def test_pm_dashboard_endpoint(self):
+        admin_token, _, _, _, project_id = self._setup()
+        resp = client.get(f"/api/projects/{project_id}/pm-dashboard", headers=auth(admin_token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "completed_jira" in data
+        assert "total_active_issues" in data
+        assert "stalled_count" in data
+        assert "sprint_health" in data
+        assert "stalled_issues" in data
+        assert "assigned_per_person" in data
+        assert "leaderboard" in data

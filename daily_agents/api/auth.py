@@ -17,11 +17,16 @@ from __future__ import annotations
 
 import logging
 import secrets
+import smtplib
 from datetime import datetime, timedelta, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
+
+from daily_agents.config.settings import get_settings
 
 from daily_agents.api.dependencies import (
     create_access_token,
@@ -154,6 +159,46 @@ def login(
     )
 
 
+def send_reset_email(to_email: str, username: str, token: str) -> None:
+    """Send reset password email via global SMTP settings, falling back to local simulation."""
+    settings = get_settings()
+    reset_url = f"{settings.base_url}/api/auth/reset-password?token={token}"
+    subject = "[myDailyAgent] Reset Your Password"
+    body_html = f"""
+    <html>
+    <body>
+        <h3>Hello {username},</h3>
+        <p>You requested a password reset for your myDailyAgent account.</p>
+        <p>Please click the link below to reset your password:</p>
+        <p><a href="{reset_url}">{reset_url}</a></p>
+        <br>
+        <p>If you did not request this, please ignore this email.</p>
+    </body>
+    </html>
+    """
+
+    if settings.smtp_server and settings.sender_email:
+        try:
+            msg = MIMEMultipart()
+            msg["From"] = settings.sender_email
+            msg["To"] = to_email
+            msg["Subject"] = subject
+            msg.attach(MIMEText(body_html, "html"))
+
+            server = smtplib.SMTP(settings.smtp_server, settings.smtp_port or 587)
+            server.starttls()
+            if settings.sender_password:
+                server.login(settings.sender_email, settings.sender_password)
+            server.sendmail(settings.sender_email, [to_email], msg.as_string())
+            server.quit()
+            logger.info("Password reset email sent to %s via SMTP", to_email)
+            return
+        except Exception as e:
+            logger.warning("SMTP forgot-password reset dispatch failed: %s. Simulating locally.", e)
+
+    logger.info("SIMULATION: Reset email dispatched to %s. Reset link: %s", to_email, reset_url)
+
+
 @router.post(
     "/auth/forgot-password",
     response_model=MessageResponse,
@@ -181,9 +226,8 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
 
     logger.info("Password reset requested for user: %s", user.username)
 
-    # TODO: Phase 5 — Send email with reset link (REQ-AUTH-025)
-    # For now, log the token for development
-    logger.debug("Reset token for %s: %s", user.username, reset_token)
+    # Phase 5 — Send email with reset link (REQ-AUTH-025)
+    send_reset_email(user.email, user.username, reset_token)
 
     return success_msg
 

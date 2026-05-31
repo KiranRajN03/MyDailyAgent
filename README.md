@@ -66,7 +66,7 @@ myDailyAgent/
 ## Development Status
 
 - [x] **Phase 1** — Foundation & Data Model
-- [ ] **Phase 2** — Authentication & RBAC
-- [ ] **Phase 3** — Core API Endpoints (CRUD)
-- [ ] **Phase 4** — AI Agents & LangGraph Orchestration
-- [ ] **Phase 5** — External Integrations & Bot Logic
+- [x] **Phase 2** — Authentication & RBAC
+- [x] **Phase 3** — Core API Endpoints (CRUD)
+- [x] **Phase 4** — AI Agents & LangGraph Orchestration
+- [x] **Phase 5** — External Integrations & Bot Logic

@@ -378,6 +378,9 @@ class Meeting(Base):
     # AI Summary (stored as JSON text)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Pre-meeting notification tracker
+    reminder_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False

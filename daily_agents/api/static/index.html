@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>myDailyAgent — AI Engineering Manager Console</title>
+    <!-- Premium Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Obsidian Styles -->
+    <link rel="stylesheet" href="/static/index.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- ─── Sidebar Navigation ─── -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-robot brand-icon"></i>
+                <span class="brand-text">myDaily<span class="brand-accent">Agent</span></span>
+            </div>
+            
+            <!-- Active Project Dropdown Selector -->
+            <div class="project-selector-container">
+                <label for="global-project-select"><i class="fa-solid fa-folder-open"></i> Active Project</label>
+                <div class="select-btn-group">
+                    <select id="global-project-select" class="sidebar-select">
+                        <option value="">-- No Projects Found --</option>
+                    </select>
+                </div>
+                <div id="sidebar-jira-badge" class="jira-status-badge" style="display: none;">
+                    <i class="fa-brands fa-jira"></i>
+                    <span>Jira: </span>
+                    <span id="sidebar-jira-status" class="status-label">Checking...</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-tab="auth-tab">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Authenticate</span>
+                </button>
+                <button class="nav-btn" data-tab="project-tab" id="nav-project-btn">
+                    <i class="fa-solid fa-cubes"></i>
+                    <span>Project Setup</span>
+                </button>
+                <button class="nav-btn" data-tab="team-tab" id="nav-team-btn">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span>Team Roster</span>
+                </button>
+                <button class="nav-btn" data-tab="meeting-tab" id="nav-meeting-btn">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <span>Meeting Control</span>
+                </button>
+                <button class="nav-btn" data-tab="agent-tab" id="nav-agent-btn">
+                    <i class="fa-solid fa-brain"></i>
+                    <span>AI Agent Chat</span>
+                </button>
+                <button class="nav-btn" data-tab="pm-dashboard-tab" id="nav-pm-dashboard-btn">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>PM Dashboard</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-status-card" id="user-status-card">
+                    <div class="avatar"><i class="fa-solid fa-circle-user"></i></div>
+                    <div class="status-info">
+                        <p class="status-name" id="status-user-name">Guest Mode</p>
+                        <p class="status-role" id="status-user-role">Unauthenticated</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ─── Main Content Board ─── -->
+        <main class="main-board">
+            
+            <!-- ─── Tab 1: Authenticate ─── -->
+            <section class="tab-content active" id="auth-tab">
+                <div class="card-grid">
+                    <!-- Login Form Card -->
+                    <div class="glass-card">
+                        <h2 class="card-title"><i class="fa-solid fa-lock-open title-icon"></i> User Login</h2>
+                        <form id="login-form" class="auth-form">
+                            <div class="form-group">
+                                <label for="login-username">Username</label>
+                                <input type="text" id="login-username" placeholder="e.g. manager_alice" required autocomplete="username">
+                            </div>
+                            <div class="form-group">
+                                <label for="login-password">Password</label>
+                                <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+                            </div>
+                            <button type="submit" class="primary-btn">Log In <i class="fa-solid fa-sign-in-alt"></i></button>
+                        </form>
+                    </div>
+
+                    <!-- Register Form Card -->
+                    <div class="glass-card">
+                        <h2 class="card-title"><i class="fa-solid fa-user-plus title-icon"></i> Account Registration</h2>
+                        <form id="register-form" class="auth-form">
+                            <div class="form-group">
+                                <label for="reg-username">Username</label>
+                                <input type="text" id="reg-username" placeholder="Letters, numbers, underscores" required autocomplete="username">
+                            </div>
+                            <div class="form-group">
+                                <label for="reg-email">Email</label>
+                                <input type="email" id="reg-email" placeholder="e.g. name@company.com" required autocomplete="email">
+                            </div>
+                            <div class="form-group">
+                                <label for="reg-fullname">Full Name</label>
+                                <input type="text" id="reg-fullname" placeholder="e.g. Alice Manager" required autocomplete="name">
+                            </div>
+                            <div class="form-group">
+                                <label for="reg-password">Password</label>
+                                <input type="password" id="reg-password" placeholder="••••••••" required autocomplete="new-password">
+                            </div>
+                            <button type="submit" class="secondary-btn">Register User <i class="fa-solid fa-plus-circle"></i></button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─── Tab 2: Project Setup ─── -->
+            <section class="tab-content" id="project-tab">
+                <div class="glass-card wide-card">
+                    <h2 class="card-title"><i class="fa-solid fa-sliders title-icon"></i> Project Parameters</h2>
+                    <form id="project-form" class="responsive-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="proj-name">Project Name</label>
+                                <input type="text" id="proj-name" placeholder="e.g. Alpha Platform" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-key">Project Key (Uppercase)</label>
+                                <input type="text" id="proj-key" placeholder="e.g. ALPH" required>
+                            </div>
+                        </div>
+
+                        <div class="form-subtitle" style="display: flex; align-items: center; gap: 15px; justify-content: space-between;">
+                            <span><i class="fa-brands fa-jira"></i> Jira Cloud API Settings</span>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <button type="button" id="btn-test-jira" class="secondary-btn" style="padding: 4px 10px; font-size: 11px; display: none; width: auto; margin: 0; background: rgba(0, 242, 254, 0.1); border-color: rgba(0, 242, 254, 0.3);"><i class="fa-solid fa-plug"></i> Test Connection</button>
+                                <span id="project-jira-status-text" style="font-size: 11px; font-weight: 500;"></span>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="proj-jira-url">Jira Base URL</label>
+                                <input type="text" id="proj-jira-url" placeholder="https://company.atlassian.net">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-jira-email">Jira Account Email</label>
+                                <input type="email" id="proj-jira-email" placeholder="email@company.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-jira-token">Jira API Token</label>
+                                <input type="password" id="proj-jira-token" placeholder="••••••••">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-jira-key">Jira Project Key</label>
+                                <input type="text" id="proj-jira-key" placeholder="e.g. ALP">
+                            </div>
+                        </div>
+
+                        <div class="form-subtitle"><i class="fa-solid fa-envelope"></i> SMTP Email Configurations</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="proj-smtp-server">SMTP Server</label>
+                                <input type="text" id="proj-smtp-server" placeholder="smtp.gmail.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-smtp-port">SMTP Port</label>
+                                <input type="number" id="proj-smtp-port" placeholder="587">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-sender-email">Sender Email</label>
+                                <input type="email" id="proj-sender-email" placeholder="sender@gmail.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-sender-password">Sender Password</label>
+                                <input type="password" id="proj-sender-password" placeholder="••••••••">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-recipient-emails">Recipient Emails (Comma separated)</label>
+                                <input type="text" id="proj-recipient-emails" placeholder="team@company.com, manager@company.com">
+                            </div>
+                        </div>
+
+                        <div class="form-subtitle"><i class="fa-solid fa-clock"></i> Standup Clocks & Sprint Frequencies</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="proj-meeting-link">Standup Video Call Link</label>
+                                <input type="text" id="proj-meeting-link" placeholder="https://meet.google.com/abc-defg-hij">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-standup-time">Standup Time (HH:MM)</label>
+                                <input type="text" id="proj-standup-time" placeholder="09:30">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-reminder-time">Reminder Time (HH:MM)</label>
+                                <input type="text" id="proj-reminder-time" placeholder="09:15">
+                            </div>
+                            <div class="form-group">
+                                <label for="proj-sprint-days">Sprint Duration (Days)</label>
+                                <input type="number" id="proj-sprint-days" placeholder="14" value="14">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="primary-btn form-submit-btn">Save Project Configuration <i class="fa-solid fa-save"></i></button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ─── Tab 3: Team Roster ─── -->
+            <section class="tab-content" id="team-tab">
+                <div class="grid-layout-2-1">
+                    <!-- Left: Allocation Form & Roster List -->
+                    <div class="glass-card">
+                        <h2 class="card-title"><i class="fa-solid fa-users title-icon"></i> Allocated Project Team</h2>
+                        <div class="roster-wrapper" id="roster-list">
+                            <div class="no-data-placeholder">
+                                <i class="fa-solid fa-users-slash"></i>
+                                <p>No team members allocated to this project yet.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Add Member Card -->
+                    <div class="glass-card">
+                        <h2 class="card-title"><i class="fa-solid fa-user-plus title-icon"></i> Allocate Member</h2>
+                        <form id="team-alloc-form">
+                            <div class="form-group">
+                                <label for="alloc-user-id">Select User</label>
+                                <select id="alloc-user-id" required>
+                                    <option value="">-- Choose User --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="alloc-role">Project Role</label>
+                                <select id="alloc-role" required>
+                                    <option value="developer">Developer</option>
+                                    <option value="qa">QA Engineer</option>
+                                    <option value="designer">Designer</option>
+                                    <option value="tech_lead">Technical Lead</option>
+                                    <option value="product_owner">Product Owner</option>
+                                    <option value="scrum_master">Scrum Master</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="alloc-jira-username">Jira Account Handle</label>
+                                <input type="text" id="alloc-jira-username" placeholder="e.g. bob.developer">
+                            </div>
+                            <button type="submit" class="primary-btn">Allocate Member <i class="fa-solid fa-check-circle"></i></button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─── Tab 4: Meeting Control ─── -->
+            <section class="tab-content" id="meeting-tab">
+                <div class="card-grid">
+                    <!-- Left: Active Lifecycle Stopwatch -->
+                    <div class="glass-card">
+                        <h2 class="card-title"><i class="fa-solid fa-stopwatch title-icon"></i> Active Standup Clock</h2>
+                        <div class="stopwatch-container">
+                            <div class="clock-display" id="clock-display">00:00:00</div>
+                            <div class="clock-controls">
+                                <button class="start-btn" id="btn-start-meeting"><i class="fa-solid fa-play"></i> Start Meeting</button>
+                                <button class="stop-btn" id="btn-stop-meeting" disabled><i class="fa-solid fa-stop"></i> Stop Meeting</button>
+                            </div>
+                            <div class="meeting-details-small" id="active-meeting-summary">
+                                Status: <span class="badge-status pending">No active standup</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Attendance Grid Sheet -->
+                    <div class="glass-card">
+                        <h2 class="card-title"><i class="fa-solid fa-clipboard-user title-icon"></i> Attendance Sheet</h2>
+                        <div class="attendance-sheet-wrapper" id="attendance-sheet-list">
+                            <div class="no-data-placeholder">
+                                <i class="fa-solid fa-user-clock"></i>
+                                <p>Start a standup meeting to log roster attendance.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─── Tab 5: AI Agent Chat ─── -->
+            <section class="tab-content" id="agent-tab">
+                <div class="agent-console-layout">
+                    <!-- Chat Timeline Grid -->
+                    <div class="chat-terminal" id="chat-terminal">
+                        <div class="system-message">
+                            <i class="fa-solid fa-robot system-bot-icon"></i>
+                            <div class="system-bubble">
+                                <p><strong>Engineering Manager Supervisor:</strong> Welcome to the multi-tenant agent chat terminal. Command me to sync sprint boards, analyze developer performance scores, or email project reports.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- State Orchestration Log -->
+                    <div class="orchestration-log" id="orchestration-log">
+                        <div class="log-header">
+                            <i class="fa-solid fa-list-check"></i>
+                            <span>Graph Orchestration Tracker</span>
+                        </div>
+                        <div class="log-timeline" id="log-timeline">
+                            <div class="log-item idle">
+                                <span class="dot"></span>
+                                <span class="text">Supervisor is idle. Enter a prompt to begin.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input Box Pane -->
+                    <div class="chat-input-bar">
+                        <input type="text" id="chat-input-field" placeholder="e.g. Sync sprint issues from Jira and compute team metrics..." required>
+                        <button class="send-btn" id="btn-send-message">Send Query <i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─── Tab 6: PM Dashboard ─── -->
+            <section class="tab-content" id="pm-dashboard-tab">
+                <!-- Top Metrics Row -->
+                <div class="metrics-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 20px;">
+                        <div style="background: rgba(16, 185, 129, 0.1); color: #10B981; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-circle-check"></i></div>
+                        <div>
+                            <h3 id="pm-completed-jira" style="font-size: 24px; font-weight: 700; margin: 0; color: var(--text-primary);">0</h3>
+                            <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Completed Issues</p>
+                        </div>
+                    </div>
+                    <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 20px;">
+                        <div style="background: rgba(239, 68, 68, 0.1); color: #EF4444; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div>
+                            <h3 id="pm-stalled-issues" style="font-size: 24px; font-weight: 700; margin: 0; color: var(--text-primary);">0</h3>
+                            <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Stalled (> 2 Days)</p>
+                        </div>
+                    </div>
+                    <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 20px;">
+                        <div style="background: rgba(79, 70, 229, 0.1); color: #4F46E5; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-truck-fast"></i></div>
+                        <div>
+                            <h3 id="pm-total-active-issues" style="font-size: 24px; font-weight: 700; margin: 0; color: var(--text-primary);">0</h3>
+                            <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Active Sprint Issues</p>
+                        </div>
+                    </div>
+                    <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 20px;">
+                        <div style="background: rgba(0, 242, 254, 0.1); color: var(--accent-teal); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;"><i class="fa-solid fa-heart-pulse"></i></div>
+                        <div>
+                            <h3 id="pm-sprint-health" style="font-size: 24px; font-weight: 700; margin: 0; color: var(--text-primary);">100%</h3>
+                            <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Sprint Health</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-layout-2-1" style="margin-top: 24px;">
+                    <!-- Left: Stalled Tickets & Overall Assigned Issues -->
+                    <div style="display: flex; flex-direction: column; gap: 24px;">
+                        <!-- Stalled Card -->
+                        <div class="glass-card">
+                            <h2 class="card-title" style="color: var(--accent-error);"><i class="fa-solid fa-triangle-exclamation"></i> Stalled Issues (> 2 Days in Same Status)</h2>
+                            <div class="table-wrapper" style="overflow-x: auto; margin-top: 16px;">
+                                <table class="pm-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid var(--glass-border); color: var(--text-muted); font-size: 12px; text-transform: uppercase;">
+                                            <th style="padding: 12px;">Key</th>
+                                            <th style="padding: 12px;">Summary</th>
+                                            <th style="padding: 12px;">Status</th>
+                                            <th style="padding: 12px;">Stagnant For</th>
+                                            <th style="padding: 12px;">Assignee</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pm-stalled-list" style="font-size: 13px;">
+                                        <tr>
+                                            <td colspan="5" class="table-empty" style="padding: 24px; text-align: center; color: var(--text-muted);">No stalled issues detected. Sprint is moving perfectly!</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Overall Assigned Card -->
+                        <div class="glass-card">
+                            <h2 class="card-title"><i class="fa-solid fa-list-check title-icon"></i> Total Issues Assigned per Person (Across Board)</h2>
+                            <div class="table-wrapper" style="overflow-x: auto; margin-top: 16px;">
+                                <table class="pm-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid var(--glass-border); color: var(--text-muted); font-size: 12px; text-transform: uppercase;">
+                                            <th style="padding: 12px;">Assignee</th>
+                                            <th style="padding: 12px; text-align: center;">To Do</th>
+                                            <th style="padding: 12px; text-align: center;">In Progress</th>
+                                            <th style="padding: 12px; text-align: center;">Done</th>
+                                            <th style="padding: 12px; text-align: center; font-weight: 700;">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pm-assigned-list" style="font-size: 13px;">
+                                        <tr>
+                                            <td colspan="5" class="table-empty" style="padding: 24px; text-align: center; color: var(--text-muted);">Roster mapping empty or connection sync pending.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Developer Leaderboard -->
+                    <div class="glass-card" style="display: flex; flex-direction: column;">
+                        <h2 class="card-title" style="color: #ffaa00;"><i class="fa-solid fa-trophy"></i> Developer Leaderboard</h2>
+                        <div class="leaderboard-container" id="pm-leaderboard" style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">
+                            <div class="no-data-placeholder" style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
+                                <i class="fa-solid fa-award" style="font-size: 32px; color: #ffaa00; margin-bottom: 12px;"></i>
+                                <p>Sync active sprint metrics to build developer rankings.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Interactive Javascript Controller -->
+    <script src="/static/app.js"></script>
+</body>
+</html>

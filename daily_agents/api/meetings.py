@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -31,11 +31,13 @@ from daily_agents.api.schemas import (
 )
 from daily_agents.database.config import get_db
 from daily_agents.database.models import (
+    AttendanceRecord,
     Meeting,
     MeetingStatus,
     MeetingType,
     Project,
     RecurringMeeting,
+    TeamMember,
     User,
     UserRole,
 )
@@ -516,3 +518,106 @@ def delete_recurring_meeting(
     return MessageResponse(
         message=f"Recurring meeting deleted. {cancelled_count} future meetings cancelled."
     )
+
+
+# Import BaseModel for schema declaration
+from pydantic import BaseModel
+
+# ── Attendance Endpoints (REQ-BOT-030 to 032) ─────────────────────────
+
+class AttendanceRecordRequest(BaseModel):
+    user_id: int
+    attended: bool
+    late_by_minutes: Optional[int] = None
+
+class AttendanceRecordResponse(BaseModel):
+    user_id: int
+    username: str
+    full_name: Optional[str] = None
+    attended: bool
+    late_by_minutes: Optional[int] = None
+
+@router.get(
+    "/meetings/{meeting_id}/attendance",
+    response_model=List[AttendanceRecordResponse],
+    summary="Get attendance records for a meeting",
+)
+def get_meeting_attendance(
+    meeting_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get meeting attendance records. 
+    If no records exist, return default records for all project team members.
+    """
+    meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if meeting is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meeting not found.",
+        )
+    
+    records = db.query(AttendanceRecord).filter(AttendanceRecord.meeting_id == meeting_id).all()
+    records_dict = {r.user_id: r for r in records}
+    
+    team_members = db.query(TeamMember).filter(TeamMember.project_id == meeting.project_id).all()
+    
+    response = []
+    for tm in team_members:
+        u = db.query(User).filter(User.id == tm.user_id).first()
+        if not u:
+            continue
+        
+        record = records_dict.get(tm.user_id)
+        response.append(
+            AttendanceRecordResponse(
+                user_id=tm.user_id,
+                username=u.username,
+                full_name=u.full_name,
+                attended=record.attended if record else False,
+                late_by_minutes=record.late_by_minutes if record else None,
+            )
+        )
+    return response
+
+@router.post(
+    "/meetings/{meeting_id}/attendance",
+    response_model=MessageResponse,
+    summary="Save/update attendance records for a meeting",
+)
+def save_meeting_attendance(
+    meeting_id: int,
+    request: List[AttendanceRecordRequest],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save or update attendance records for a meeting."""
+    meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if meeting is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meeting not found.",
+        )
+    
+    for item in request:
+        record = db.query(AttendanceRecord).filter(
+            AttendanceRecord.meeting_id == meeting_id,
+            AttendanceRecord.user_id == item.user_id,
+        ).first()
+        
+        if record:
+            record.attended = item.attended
+            record.late_by_minutes = item.late_by_minutes
+        else:
+            record = AttendanceRecord(
+                meeting_id=meeting_id,
+                user_id=item.user_id,
+                project_id=meeting.project_id,
+                attended=item.attended,
+                late_by_minutes=item.late_by_minutes,
+            )
+            db.add(record)
+            
+    db.flush()
+    return MessageResponse(message="Attendance records updated successfully.")

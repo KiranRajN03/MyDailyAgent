@@ -88,3 +88,13 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     logger.info("✅ Database tables created / verified.")
+
+    # SQLite migration safety check: dynamically add reminder_sent to meetings if missing
+    try:
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE meetings ADD COLUMN reminder_sent INTEGER DEFAULT 0"))
+            logger.info("SQLite database migration applied: added column reminder_sent to meetings table")
+    except Exception:
+        # Ignore if column already exists or not applicable
+        pass
