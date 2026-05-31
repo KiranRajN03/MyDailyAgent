@@ -198,6 +198,7 @@ class Project(Base):
     standup_time: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)  # HH:MM
     reminder_time: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)  # HH:MM
     timezone: Mapped[str] = mapped_column(String(50), default="UTC", nullable=False)
+    conference_provider: Mapped[str] = mapped_column(String(50), default="manual", nullable=False)
 
     # ── Sprint Configuration ─────────────────────────────────────────
     sprint_duration_days: Mapped[int] = mapped_column(Integer, default=14, nullable=False)

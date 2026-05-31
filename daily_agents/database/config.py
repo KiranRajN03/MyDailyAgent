@@ -98,3 +98,14 @@ def init_db() -> None:
     except Exception:
         # Ignore if column already exists or not applicable
         pass
+
+    # SQLite migration safety check: dynamically add conference_provider to projects if missing
+    try:
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE projects ADD COLUMN conference_provider TEXT DEFAULT 'manual'"))
+            logger.info("SQLite database migration applied: added column conference_provider to projects table")
+    except Exception:
+        # Ignore if column already exists or not applicable
+        pass
+

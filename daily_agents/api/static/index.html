@@ -191,10 +191,21 @@
                         </div>
 
                         <div class="form-subtitle"><i class="fa-solid fa-clock"></i> Standup Clocks & Sprint Frequencies</div>
-                        <div class="form-row">
+                        <div class="form-row" style="flex-wrap: wrap;">
                             <div class="form-group">
+                                <label for="proj-conf-provider">Meeting Integration</label>
+                                <select id="proj-conf-provider" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-color); padding: 10px; font-size: 14px; width: 100%; box-sizing: border-box; outline: none; cursor: pointer;">
+                                    <option value="manual">None (Paste Custom Link)</option>
+                                    <option value="teams">Microsoft Teams (Auto-Provision)</option>
+                                    <option value="zoom">Zoom (Auto-Provision)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="proj-meeting-link-wrapper">
                                 <label for="proj-meeting-link">Standup Video Call Link</label>
                                 <input type="text" id="proj-meeting-link" placeholder="https://meet.google.com/abc-defg-hij">
+                            </div>
+                            <div class="form-group" id="proj-conf-info-box" style="display: none; background: rgba(16, 185, 129, 0.05); border: 1px dashed rgba(16, 185, 129, 0.4); padding: 12px; border-radius: 8px; font-size: 12px; color: #10B981; max-width: 250px; line-height: 1.4;">
+                                <i class="fa-solid fa-magic"></i> <strong>Auto-Provision Active:</strong> The agent will automatically generate call links and attach invite `.ics` files!
                             </div>
                             <div class="form-group">
                                 <label for="proj-standup-time">Standup Time (HH:MM)</label>
@@ -274,6 +285,12 @@
                             </div>
                             <div class="meeting-details-small" id="active-meeting-summary">
                                 Status: <span class="badge-status pending">No active standup</span>
+                            </div>
+                            
+                            <!-- AI Sync & Countdown Banner -->
+                            <div class="pm-meeting-sync-banner" id="pm-meeting-sync-banner" style="margin-top: 20px; padding: 14px; border-radius: 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted); transition: all 0.3s ease;">
+                                <i class="fa-solid fa-robot" id="pm-meeting-sync-icon" style="color: var(--accent-blue);"></i>
+                                <span id="pm-meeting-sync-status">Scanning project standups...</span>
                             </div>
                         </div>
                     </div>

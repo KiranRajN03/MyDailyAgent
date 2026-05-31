@@ -210,10 +210,21 @@ class ProjectCreateRequest(BaseModel):
     standup_time: Optional[str] = None  # HH:MM
     reminder_time: Optional[str] = None  # HH:MM
     timezone: str = "UTC"
+    conference_provider: Optional[str] = "manual"
 
     # Sprint config
     sprint_duration_days: int = Field(14, ge=1, le=90)
     sprint_start_day: str = "Monday"
+
+    @field_validator("conference_provider")
+    @classmethod
+    def validate_provider(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return "manual"
+        allowed = {"manual", "teams", "zoom"}
+        if v.lower() not in allowed:
+            raise ValueError("Conference provider must be one of: manual, teams, zoom")
+        return v.lower()
 
     @field_validator("key")
     @classmethod
@@ -286,6 +297,17 @@ class ProjectUpdateRequest(BaseModel):
     timezone: Optional[str] = None
     sprint_duration_days: Optional[int] = Field(None, ge=1, le=90)
     sprint_start_day: Optional[str] = None
+    conference_provider: Optional[str] = None
+
+    @field_validator("conference_provider")
+    @classmethod
+    def validate_provider(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        allowed = {"manual", "teams", "zoom"}
+        if v.lower() not in allowed:
+            raise ValueError("Conference provider must be one of: manual, teams, zoom")
+        return v.lower()
 
     @field_validator("standup_time", "reminder_time")
     @classmethod
@@ -316,6 +338,7 @@ class ProjectResponse(BaseModel):
     standup_time: Optional[str] = None
     reminder_time: Optional[str] = None
     timezone: str = "UTC"
+    conference_provider: Optional[str] = "manual"
     sprint_duration_days: int = 14
     sprint_start_day: str = "Monday"
     created_at: datetime

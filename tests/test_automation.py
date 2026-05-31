@@ -186,3 +186,124 @@ class TestStandupAutomation:
             assert att_bob.attended is True
         finally:
             db.close()
+
+    def test_project_standup_sync(self):
+        token, _ = register_user("mgr4", "mgr4@test.com")
+
+        # 1. Create a project with standup_time
+        resp = client.post("/api/projects", json={
+            "name": "Sync Project",
+            "key": "SYNCPROJ",
+            "standup_time": "09:30",
+            "meeting_link": "https://teams.live.com/meet/123",
+            "timezone": "UTC"
+        }, headers=auth(token))
+        assert resp.status_code == 201
+        p = resp.json()
+
+        # Assert that RecurringMeeting was created and Meeting instances were generated
+        db = TestSession()
+        try:
+            from daily_agents.database.models import RecurringMeeting, Meeting, MeetingType, MeetingStatus
+
+            rm = db.query(RecurringMeeting).filter(
+                RecurringMeeting.project_id == p["id"],
+                RecurringMeeting.meeting_type == MeetingType.STANDUP
+            ).first()
+            assert rm is not None
+            assert rm.start_time == "09:30"
+            assert rm.meeting_link == "https://teams.live.com/meet/123"
+
+            # Verify meetings are created in the next 30 days
+            meetings = db.query(Meeting).filter(
+                Meeting.project_id == p["id"],
+                Meeting.recurring_meeting_id == rm.id
+            ).all()
+            assert len(meetings) > 0
+
+            # Verify status is SCHEDULED
+            for m in meetings:
+                assert m.status == MeetingStatus.SCHEDULED
+        finally:
+            db.close()
+
+        # 2. Update standup_time on project (run outside the active session block)
+        resp_update = client.put(f"/api/projects/{p['id']}", json={
+            "standup_time": "10:45",
+            "meeting_link": "https://teams.live.com/meet/456"
+        }, headers=auth(token))
+        assert resp_update.status_code == 200
+
+        # Assert RecurringMeeting and Meetings were updated / regenerated (using a fresh isolated session)
+        db2 = TestSession()
+        try:
+            from daily_agents.database.models import RecurringMeeting, Meeting, MeetingType, MeetingStatus
+
+            rm_updated = db2.query(RecurringMeeting).filter(RecurringMeeting.project_id == p["id"]).first()
+            assert rm_updated.start_time == "10:45"
+            assert rm_updated.meeting_link == "https://teams.live.com/meet/456"
+
+            # Assert all previously scheduled standup meetings at 09:30 are deleted
+            # and only new ones at 10:45 exist as scheduled
+            active_meetings = db2.query(Meeting).filter(
+                Meeting.project_id == p["id"],
+                Meeting.recurring_meeting_id == rm_updated.id,
+                Meeting.status == MeetingStatus.SCHEDULED
+            ).all()
+            assert len(active_meetings) > 0
+            for am in active_meetings:
+                assert am.scheduled_start.strftime("%H:%M") == "10:45"
+        finally:
+            db2.close()
+
+    def test_conference_auto_provision(self):
+        token, _ = register_user("mgr5", "mgr5@test.com")
+
+        # 1. Create a project with conference_provider: zoom
+        resp = client.post("/api/projects", json={
+            "name": "Zoom Provision Project",
+            "key": "ZMPROV",
+            "standup_time": "09:30",
+            "conference_provider": "zoom",
+            "timezone": "UTC"
+        }, headers=auth(token))
+        assert resp.status_code == 201
+        p_zoom = resp.json()
+        assert p_zoom["conference_provider"] == "zoom"
+        assert p_zoom["meeting_link"] is not None
+        assert p_zoom["meeting_link"].startswith("https://zoom.us")
+
+        # 2. Create a project with conference_provider: teams
+        resp2 = client.post("/api/projects", json={
+            "name": "Teams Provision Project",
+            "key": "TMSPROV",
+            "standup_time": "10:15",
+            "conference_provider": "teams",
+            "timezone": "UTC"
+        }, headers=auth(token))
+        assert resp2.status_code == 201
+        p_teams = resp2.json()
+        assert p_teams["conference_provider"] == "teams"
+        assert p_teams["meeting_link"] is not None
+        assert p_teams["meeting_link"].startswith("https://teams.microsoft.com")
+
+        # 3. Assert SMTP or simulation mail sends calendar invitation attachment
+        db = TestSession()
+        try:
+            from daily_agents.tools.agent_tools import send_email_report
+            from daily_agents.database.models import Project
+            
+            project_db = db.query(Project).filter(Project.id == p_zoom["id"]).first()
+            result = send_email_report(
+                project_id=project_db.id,
+                report_content="<html><body>Standup Report</body></html>",
+                recipients=["test@company.com"],
+                db=db
+            )
+            assert result["email_sent"] is True
+            assert result["attached_ics"] is True
+        finally:
+            db.close()
+
+
+

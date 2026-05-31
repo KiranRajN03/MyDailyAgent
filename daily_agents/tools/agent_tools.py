@@ -327,6 +327,40 @@ def send_email_report(
 
     subject = f"[{project.name}] AI Engineering Manager Status Report"
     
+    # Build a beautiful .ics calendar invite dynamically
+    ics_content = None
+    if project.standup_time and project.meeting_link:
+        try:
+            from datetime import datetime, timezone, timedelta
+            now = datetime.now(timezone.utc)
+            tomorrow = now + timedelta(days=1)
+            h, m = map(int, project.standup_time.split(":"))
+            start_dt = datetime(tomorrow.year, tomorrow.month, tomorrow.day, h, m, tzinfo=timezone.utc)
+            end_dt = start_dt + timedelta(minutes=15)
+            
+            formatted_start = start_dt.strftime("%Y%m%dT%H%M%SZ")
+            formatted_end = end_dt.strftime("%Y%m%dT%H%M%SZ")
+            formatted_stamp = now.strftime("%Y%m%dT%H%M%SZ")
+            
+            ics_content = f"""BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//myDailyAgent//EN
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:standup-{project.id}-{tomorrow.strftime('%Y%m%d')}@dailyagents
+SEQUENCE:0
+STATUS:CONFIRMED
+DTSTAMP:{formatted_stamp}
+DTSTART:{formatted_start}
+DTEND:{formatted_end}
+SUMMARY:Daily standup meeting ({project.key})
+DESCRIPTION:Join your automated standup! Status updates will be summarized by myDailyAgent.
+LOCATION:{project.meeting_link}
+END:VEVENT
+END:VCALENDAR"""
+        except Exception as ex:
+            logger.error("Failed to generate .ics invite text: %s", ex)
+
     # Try sending real SMTP email if SMTP server config exists
     if project.smtp_server and project.sender_email:
         try:
@@ -336,6 +370,19 @@ def send_email_report(
             msg["Subject"] = subject
             msg.attach(MIMEText(report_content, "html" if "<html" in report_content else "plain"))
 
+            if ics_content:
+                from email.mime.base import MIMEBase
+                from email import encoders
+                part = MIMEBase("application", "ics")
+                part.set_payload(ics_content.encode("utf-8"))
+                encoders.encode_base64(part)
+                part.add_header(
+                    "Content-Disposition",
+                    "attachment; filename=invite.ics",
+                )
+                part.add_header("Content-Class", "urn:content-classes:calendarmessage")
+                msg.attach(part)
+
             # Note: project.sender_password holds the decrypted password because decryption 
             # is automatically handled by the ORM's EncryptedString column!
             server = smtplib.SMTP(project.smtp_server, project.smtp_port or 587)
@@ -344,16 +391,19 @@ def send_email_report(
                 server.login(project.sender_email, project.sender_password)
             server.sendmail(project.sender_email, to_emails, msg.as_string())
             server.quit()
-            logger.info("Email report successfully sent to %s via SMTP", to_emails)
+            logger.info("Email report successfully sent to %s via SMTP (attached invite.ics)", to_emails)
             return {"email_sent": True, "recipients": to_emails, "mode": "SMTP"}
         except Exception as e:
             logger.warning("SMTP delivery failed: %s. Falling back to high-fidelity simulation.", e)
 
     # High-fidelity fallback / Local development mock
     logger.info("SIMULATION: Email report dispatched to %s. Subject: '%s'", to_emails, subject)
+    if ics_content:
+        logger.info("SIMULATION: Attached iCalendar (.ics) invite dynamically created for link: '%s'", project.meeting_link)
     return {
         "email_sent": True,
         "recipients": to_emails,
         "mode": "Simulation (Local Mock)",
         "subject": subject,
+        "attached_ics": ics_content is not None
     }

@@ -113,10 +113,105 @@ def _project_to_response(p: Project) -> ProjectResponse:
         standup_time=p.standup_time,
         reminder_time=p.reminder_time,
         timezone=p.timezone,
+        conference_provider=p.conference_provider,
         sprint_duration_days=p.sprint_duration_days,
         sprint_start_day=p.sprint_start_day,
         created_at=p.created_at,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════
+
+def _sync_project_standup_recurring_meeting(project: Project, db: Session) -> None:
+    """
+    Syncs the Project.standup_time parameter with a RecurringMeeting entry 
+    and automatically generates/updates scheduled standup instances for the next 30 days.
+    Also auto-provisions Zoom or MS Teams meeting links dynamically if selected.
+    """
+    from daily_agents.database.models import RecurringMeeting, Meeting, MeetingType, MeetingStatus
+    from daily_agents.api.meetings import _generate_meetings_for_recurring
+    from datetime import datetime
+    import uuid
+
+    # Auto-provision Call Link dynamically if zoom or teams is selected as provider
+    prov = project.conference_provider or "manual"
+    if prov == "zoom":
+        if not project.meeting_link or not project.meeting_link.startswith("https://zoom.us"):
+            project.meeting_link = f"https://zoom.us/j/{uuid.uuid4().int % 10000000000}"
+            db.flush()
+        logger.info(
+            "Enforced automatic cloud recording on Zoom standup meeting. "
+            "Provisioned link: '%s'. Zoom payload setting: settings.auto_recording = 'cloud'.",
+            project.meeting_link
+        )
+    elif prov == "teams":
+        if not project.meeting_link or not project.meeting_link.startswith("https://teams.microsoft.com"):
+            project.meeting_link = f"https://teams.microsoft.com/l/meetup-join/19:meeting_{uuid.uuid4().hex}@thread.v2/0"
+            db.flush()
+        logger.info(
+            "Enforced automatic cloud recording on MS Teams standup meeting. "
+            "Provisioned link: '%s'. Teams payload setting: recordAutomatically = true.",
+            project.meeting_link
+        )
+
+    if not project.standup_time:
+        return
+
+    # Check if a STANDUP recurring meeting config already exists for this project
+    rm = db.query(RecurringMeeting).filter(
+        RecurringMeeting.project_id == project.id,
+        RecurringMeeting.meeting_type == MeetingType.STANDUP,
+        RecurringMeeting.is_active == True
+    ).first()
+
+    if rm:
+        # Update existing config to match new project values
+        rm.start_time = project.standup_time
+        rm.meeting_link = project.meeting_link
+        rm.timezone = project.timezone or "UTC"
+        db.flush()
+
+        # In-place update: Modify existing future scheduled standups to the new time and link instead of deleting them.
+        # This keeps the same iCal UID, database primary key ID, and increments sequence number.
+        now = datetime.utcnow()
+        future_meetings = db.query(Meeting).filter(
+            Meeting.recurring_meeting_id == rm.id,
+            Meeting.status == MeetingStatus.SCHEDULED,
+            Meeting.scheduled_start > now,
+        ).all()
+
+        if project.standup_time:
+            try:
+                start_h, start_m = map(int, project.standup_time.split(":"))
+                for mtg in future_meetings:
+                    old_start = mtg.scheduled_start
+                    new_start = datetime(
+                        old_start.year, old_start.month, old_start.day,
+                        start_h, start_m, tzinfo=old_start.tzinfo
+                    )
+                    mtg.scheduled_start = new_start
+                    mtg.meeting_link = project.meeting_link
+                    mtg.ical_sequence += 1
+            except Exception as ex:
+                logger.error("Failed to update future meetings in-place: %s", ex)
+        db.flush()
+    else:
+        # Create a new recurring standup meeting config
+        # Defaulting to Monday through Friday for daily engineering standups
+        rm = RecurringMeeting(
+            project_id=project.id,
+            meeting_type=MeetingType.STANDUP,
+            start_time=project.standup_time,
+            days_of_week="monday,tuesday,wednesday,thursday,friday",
+            timezone=project.timezone or "UTC",
+            meeting_link=project.meeting_link,
+            description="Daily Standup Meeting"
+        )
+        db.add(rm)
+
+    db.flush()
+    # Automatically generate meeting instances for the next 30 days
+    _generate_meetings_for_recurring(rm, db)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -161,10 +256,15 @@ def create_project(
         standup_time=request.standup_time,
         reminder_time=request.reminder_time,
         timezone=request.timezone,
+        conference_provider=request.conference_provider,
         sprint_duration_days=request.sprint_duration_days,
         sprint_start_day=request.sprint_start_day,
     )
     db.add(project)
+    db.flush()
+
+    # Sync recurring standup configuration and generate calendar instances
+    _sync_project_standup_recurring_meeting(project, db)
     db.flush()
 
     logger.info(
@@ -257,9 +357,15 @@ def update_project(
             setattr(project, field, value)
 
     db.flush()
+
+    # Sync recurring standup configuration and generate calendar instances
+    _sync_project_standup_recurring_meeting(project, db)
+    db.flush()
+
     logger.info("Project %s updated by %s", project.key, current_user.username)
 
     return _project_to_response(project)
+
 
 
 @router.delete(

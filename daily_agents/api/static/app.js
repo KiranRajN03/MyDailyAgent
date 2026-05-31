@@ -63,6 +63,9 @@ document.addEventListener("DOMContentLoaded", () => {
         projSenderPassword: document.getElementById("proj-sender-password"),
         projRecipientEmails: document.getElementById("proj-recipient-emails"),
         projMeetingLink: document.getElementById("proj-meeting-link"),
+        projConfProvider: document.getElementById("proj-conf-provider"),
+        projMeetingLinkWrapper: document.getElementById("proj-meeting-link-wrapper"),
+        projConfInfoBox: document.getElementById("proj-conf-info-box"),
         projStandupTime: document.getElementById("proj-standup-time"),
         projReminderTime: document.getElementById("proj-reminder-time"),
         projSprintDays: document.getElementById("proj-sprint-days"),
@@ -94,7 +97,12 @@ document.addEventListener("DOMContentLoaded", () => {
         pmSprintHealth: document.getElementById("pm-sprint-health"),
         pmStalledList: document.getElementById("pm-stalled-list"),
         pmAssignedList: document.getElementById("pm-assigned-list"),
-        pmLeaderboard: document.getElementById("pm-leaderboard")
+        pmLeaderboard: document.getElementById("pm-leaderboard"),
+        
+        // Meeting Sync Banner
+        pmMeetingSyncBanner: document.getElementById("pm-meeting-sync-banner"),
+        pmMeetingSyncStatus: document.getElementById("pm-meeting-sync-status"),
+        pmMeetingSyncIcon: document.getElementById("pm-meeting-sync-icon")
     };
 
     // ─── Helpers: Requests with Headers ───
@@ -493,6 +501,8 @@ document.addEventListener("DOMContentLoaded", () => {
             dom.projSenderPassword.value = ""; // Don't pre-populate passwords
             dom.projRecipientEmails.value = project.recipient_emails || "";
             dom.projMeetingLink.value = project.meeting_link || "";
+            dom.projConfProvider.value = project.conference_provider || "manual";
+            toggleConferenceProviderView(project.conference_provider || "manual");
             dom.projStandupTime.value = project.standup_time || "";
             dom.projReminderTime.value = project.reminder_time || "";
             dom.projSprintDays.value = project.sprint_duration_days || 14;
@@ -552,7 +562,24 @@ document.addEventListener("DOMContentLoaded", () => {
         loadPmDashboardData();
     }
 
+    function toggleConferenceProviderView(provider) {
+        if (!dom.projMeetingLinkWrapper || !dom.projConfInfoBox) return;
+        if (provider === "manual") {
+            dom.projMeetingLinkWrapper.style.display = "block";
+            dom.projConfInfoBox.style.display = "none";
+        } else {
+            dom.projMeetingLinkWrapper.style.display = "none";
+            dom.projConfInfoBox.style.display = "block";
+        }
+    }
+
     function initProjectForm() {
+        if (dom.projConfProvider) {
+            dom.projConfProvider.addEventListener("change", (e) => {
+                toggleConferenceProviderView(e.target.value);
+            });
+        }
+
         dom.projectForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             
@@ -566,7 +593,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 smtp_port: dom.projSmtpPort.value ? parseInt(dom.projSmtpPort.value) : null,
                 sender_email: dom.projSenderEmail.value || null,
                 recipient_emails: dom.projRecipientEmails.value || null,
-                meeting_link: dom.projMeetingLink.value || null,
+                meeting_link: dom.projConfProvider.value === "manual" ? (dom.projMeetingLink.value || null) : null,
+                conference_provider: dom.projConfProvider.value || "manual",
                 standup_time: dom.projStandupTime.value || null,
                 reminder_time: dom.projReminderTime.value || null,
                 sprint_duration_days: parseInt(dom.projSprintDays.value) || 14
@@ -873,12 +901,64 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ─── Meetings Clock & Lifecycle Control ───
+    function updatePmMeetingSyncStatus(meetings) {
+        if (!dom.pmMeetingSyncBanner || !dom.pmMeetingSyncStatus) return;
+
+        // Filter and sort for scheduled meetings whose start time is in the future
+        const now = new Date();
+        const upcoming = meetings
+            .filter(m => m.status === "scheduled" && new Date(m.scheduled_start) > now)
+            .sort((a, b) => new Date(a.scheduled_start) - new Date(b.scheduled_start));
+
+        if (upcoming.length > 0) {
+            const nextMtg = upcoming[0];
+            const startTime = new Date(nextMtg.scheduled_start);
+            const diffMs = startTime - now;
+            const diffMins = Math.ceil(diffMs / 60000);
+
+            // Format dynamic readable countdown
+            let timeStr = "";
+            if (diffMins < 60) {
+                timeStr = `${diffMins} min${diffMins > 1 ? 's' : ''}`;
+            } else {
+                const hours = Math.floor(diffMins / 60);
+                const mins = diffMins % 60;
+                timeStr = `${hours}h ${mins}m`;
+            }
+
+            // Update DOM with highlight ready status
+            dom.pmMeetingSyncStatus.innerHTML = `Next meeting scheduled in <strong>${timeStr}</strong>. Agent is ready to join!`;
+            dom.pmMeetingSyncBanner.style.border = "1px solid rgba(16, 185, 129, 0.4)";
+            dom.pmMeetingSyncBanner.style.background = "rgba(16, 185, 129, 0.05)";
+            dom.pmMeetingSyncBanner.style.color = "#10B981";
+
+            if (dom.pmMeetingSyncIcon) {
+                dom.pmMeetingSyncIcon.className = "fa-solid fa-clock-rotate-left fa-pulse";
+                dom.pmMeetingSyncIcon.style.color = "#10B981";
+            }
+        } else {
+            // Update DOM with neutral empty scheduled status
+            dom.pmMeetingSyncStatus.textContent = "No active meeting scheduled.";
+            dom.pmMeetingSyncBanner.style.border = "1px solid var(--glass-border)";
+            dom.pmMeetingSyncBanner.style.background = "rgba(255, 255, 255, 0.02)";
+            dom.pmMeetingSyncBanner.style.color = "var(--text-muted)";
+
+            if (dom.pmMeetingSyncIcon) {
+                dom.pmMeetingSyncIcon.className = "fa-solid fa-robot";
+                dom.pmMeetingSyncIcon.style.color = "var(--accent-blue)";
+            }
+        }
+    }
+
     async function checkActiveMeeting() {
         if (!state.activeProjectId) return;
 
         try {
             const meetings = await apiRequest(`/api/projects/${state.activeProjectId}/meetings`);
             
+            // Update the dynamic sync countdown status banner
+            updatePmMeetingSyncStatus(meetings);
+
             // Find active meeting in progress
             const active = meetings.find(m => m.status === "in_progress");
             if (active) {
